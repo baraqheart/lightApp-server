@@ -22,16 +22,7 @@ services:
       - mongodb
 
   # Client service
-  client:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-
-    container_name: frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - server
+ 
 
   # Database service
   mongodb:
