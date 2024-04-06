@@ -1,1 +1,102 @@
+name: light app cicd
+on:
+  push:
+    branches:
+    - dev
+env:      
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Get code
+       uses: actions/checkout@v3
+     
+    - name: Cache dependencies
+       uses: actions/cache@v3
+       id: npm-cache # use this to check for `cache-hit` ==> if: steps.npm-cache.outputs.cache-hit != 'true'
+       with:
+       path: ${{ steps.npm-cache-dir.outputs.dir }}
+       key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+     
+    - name: Install dependencies
+       run: npm ci
+   
+    - name: Lint code
+       run: npm run lint
+
+    - name: Test code
+       run: npm run test
+  
+  build artifacts:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs: 
+      script-file: ${{ steps.publish.outputs.publish }}
+    
+    steps:
+    - name: Get code
+      uses: actions/checkout@v3
+     
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      id: npm-cache # use this to check for `cache-hit` ==> if: steps.npm-cache.outputs.cache-hit != 'true'
+      with:
+      path: ${{ steps.npm-cache-dir.outputs.dir }}
+      key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+     
+    - name: Install dependencies
+      run: npm ci
+   
+    - name: Build app
+      run: npm run build
+
+    - name: Publush code
+      id: publish
+      run: find ./*.js -type f -execdie echo 'set-output name=script-file'
+
+    - name: upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+      name: my-artifact
+      path: path/to/artifact/ # or path/to/artifact 
+
+       
+       
+
+  build image:
+  name: build lightApp image
+    needs: build artifacts
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Build Docker image
+      run: |
+        docker build -t your_docker_image_tag .
+     
+    - name: Login to Azure container registry
+      uses: azure/docker-login@v1
+      with:
+        login-server: '<login server>' # default: index.docker.io
+        username: '<username>'
+        password: '<password>'
+
+    - name: Push Docker image to Acr
+      run: |
+        docker push your_docker_image_tag
+
+  deploy  
+    steps: 
+    - name: Deploy to AKS
+      uses: Azure/k8s-deploy@v1
+      with:
+        azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
+        images: your_docker_image_tag
+        namespace: lightapp
+        manifests: |
+          kubernetes/deployment.yaml
+          kubernetes/service.yaml
+
+    - name: Confirmation message
+      run: echo "looks like, it all worked fine!"
 
