@@ -12,13 +12,7 @@ jobs:
     - name: Get code
        uses: actions/checkout@v3
      
-    - name: Cache dependencies
-       uses: actions/cache@v3
-       id: npm-cache # use this to check for `cache-hit` ==> if: steps.npm-cache.outputs.cache-hit != 'true'
-       with:
-       path: ${{ steps.npm-cache-dir.outputs.dir }}
-       key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-     
+      
     - name: Install dependencies
        run: npm ci
    
@@ -42,7 +36,7 @@ jobs:
       uses: actions/cache@v3
       id: npm-cache # use this to check for `cache-hit` ==> if: steps.npm-cache.outputs.cache-hit != 'true'
       with:
-      path: ${{ steps.npm-cache-dir.outputs.dir }}
+      path: ~/.npm
       key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
      
     - name: Install dependencies
@@ -67,32 +61,33 @@ jobs:
   build image:
   name: build lightApp image
     needs: build artifacts
+    env:
+      IMAGE: beeygold/lightapp
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
       
     - name: Build Docker image
       run: |
-        docker build -t your_docker_image_tag .
+        docker build -t ${{ IMAGE }} .
      
     - name: Login to Azure container registry
       uses: azure/docker-login@v1
       with:
-        login-server: '<login server>' # default: index.docker.io
-        username: '<username>'
-        password: '<password>'
+        login-server: index.docker.io
+        username: ${{ docker_user }}
+        password: ${{ docker_pass }}
 
     - name: Push Docker image to Acr
       run: |
-        docker push your_docker_image_tag
-
+        docker push ${{ IMAGE }}
   deploy  
     steps: 
     - name: Deploy to AKS
       uses: Azure/k8s-deploy@v1
       with:
         azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
-        images: your_docker_image_tag
+        images: ${{ IMAGE }}
         namespace: lightapp
         manifests: |
           kubernetes/deployment.yaml
